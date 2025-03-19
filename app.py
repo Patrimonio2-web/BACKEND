@@ -1,14 +1,14 @@
-from flask import Flask, request, redirect, url_for, render_template
+from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS  # Agregado para CORS
+import os
 
 app = Flask(__name__)
+CORS(app)  # Permite peticiones desde cualquier origen (puedes restringirlo)
 
-# Configuración de la base de datos local
-#app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:Rocko345@localhost/patrimonio'
-#app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-#base en render
+# Configuración de la base de datos en Render
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://patrimonio_ppfk_user:SabopRq1mqHqRXBZaZBaWsEcqfHYJWM2@dpg-cv8oiprqf0us73bbbbfg-a.oregon-postgres.render.com/patrimonio_ppfk'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
@@ -18,28 +18,29 @@ class Persona(db.Model):
     nombre = db.Column(db.String(100), nullable=False)
     apellido = db.Column(db.String(100), nullable=False)
 
-    def __repr__(self):
-        return f'<Persona {self.nombre} {self.apellido}>'
+    def to_dict(self):
+        return {"id": self.id, "nombre": self.nombre, "apellido": self.apellido}
 
 # Crear la base de datos y las tablas
 with app.app_context():
     db.create_all()
 
-# Ruta para la página principal
-@app.route('/')
-def index():
+# Obtener todas las personas (ruta GET)
+@app.route('/personas', methods=['GET'])
+def get_personas():
     personas = Persona.query.all()
-    return render_template('index.html', personas=personas)
+    return jsonify([p.to_dict() for p in personas])
 
-# Ruta para agregar una nueva persona
-@app.route('/add', methods=['POST'])
+# Agregar una nueva persona (ruta POST)
+@app.route('/personas', methods=['POST'])
 def add_persona():
-    nombre = request.form['nombre']
-    apellido = request.form['apellido']
-    nueva_persona = Persona(nombre=nombre, apellido=apellido)
+    data = request.json
+    nueva_persona = Persona(nombre=data['nombre'], apellido=data['apellido'])
     db.session.add(nueva_persona)
     db.session.commit()
-    return redirect(url_for('index'))
+    return jsonify(nueva_persona.to_dict()), 201
 
+# Configuración para que Flask acepte el puerto de Render
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))  # Render asigna un puerto dinámico
+    app.run(host="0.0.0.0", port=port, debug=True)
