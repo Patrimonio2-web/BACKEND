@@ -31,6 +31,8 @@ def get_personas():
     personas = Persona.query.all()
     return jsonify([p.to_dict() for p in personas])
 
+
+
 # Agregar una nueva persona (ruta POST)
 @app.route('/personas', methods=['POST'])
 def add_persona():
